@@ -35,12 +35,11 @@ pub fn run_discovery() -> std::io::Result<()> {
     socket.set_broadcast(true)?;
 
     let node_id = Uuid::new_v4();
-    let systemOption = System::host_name();
-    let name;
-    match systemOption {
-        Some(value) => name = value,
-        None => name = String::from("System Name not found"),
-    }
+    let system_option = System::host_name();
+    let name = match system_option {
+        Some(value) => value,
+        None => String::from("System Name not found"),
+    };
     let state = "IDLE";
 
     let send_socket = socket.try_clone()?;
