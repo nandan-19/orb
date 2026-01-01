@@ -1,5 +1,6 @@
 use std::io;
 mod discover;
+mod identity;
 #[derive(Debug)]
 enum State {
     Idle,
@@ -61,8 +62,8 @@ fn main() {
     // let mut state = State::Idle;
     //
     // println!("You are in IDLE state.");
-    // while true {
-    //     println!("Enter 'send' or 'receive' or 'stop':");
+    // loop {
+    //     println!("Enter 'send' or 'receive' or 'stop' or 'status':");
     //
     //     let mut option = String::new();
     //     io::stdin()
@@ -82,6 +83,26 @@ fn main() {
     //         }
     //         "stop" => {
     //             break;
+    //         }
+    //         "status" => {
+    //             println!("Your state is {:?}", state);
+    //             println!("Enter your state: ");
+    //             let mut set_state = String::new();
+    //             io::stdin()
+    //                 .read_line(&mut set_state)
+    //                 .expect("Enter proper State");
+    //             let state_option = set_state.trim();
+    //             match state_option {
+    //                 "SEND" => {
+    //                     state = State::Send;
+    //                 }
+    //                 "RECEIVE" => {
+    //                     state = State::Receive;
+    //                 }
+    //                 _ => {
+    //                     println!("Error occured!! Pleae choose a valid option");
+    //                 }
+    //             }
     //         }
     //         _ => {
     //             println!("Unknown command");

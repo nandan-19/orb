@@ -1,12 +1,10 @@
+use crate::identity;
+use get_if_addrs::{IfAddr, get_if_addrs};
 use std::{
     net::{Ipv4Addr, UdpSocket},
     thread,
     time::Duration,
 };
-
-use get_if_addrs::{IfAddr, get_if_addrs};
-use sysinfo::System;
-use uuid::Uuid;
 
 fn get_ipv4_interfaces() -> Vec<(Ipv4Addr, Ipv4Addr)> {
     let mut result = Vec::new();
@@ -33,21 +31,16 @@ fn compute_broadcast(ip: Ipv4Addr, netmask: Ipv4Addr) -> Ipv4Addr {
 pub fn run_discovery() -> std::io::Result<()> {
     let socket = UdpSocket::bind("0.0.0.0:34254")?;
     socket.set_broadcast(true)?;
-
-    let node_id = Uuid::new_v4();
-    let system_option = System::host_name();
-    let name = match system_option {
-        Some(value) => value,
-        None => String::from("System Name not found"),
-    };
+    let node_id = identity::get_node_id();
+    let id = node_id.clone();
+    let name = format!("{}-{}", whoami::hostname(), whoami::username());
     let state = "IDLE";
-
     let send_socket = socket.try_clone()?;
     thread::spawn(move || {
+        let interfaces = get_ipv4_interfaces();
         loop {
-            let msg = format!("{}|{}|{}", node_id, name, state);
-            let interfaces = get_ipv4_interfaces();
-            for (ip, mask) in interfaces {
+            let msg = format!("ORB|{}|{}|{}", node_id, name, state);
+            for (ip, mask) in interfaces.clone() {
                 let broadcast = compute_broadcast(ip, mask);
                 let addr = format!("{}:34254", broadcast);
                 let _ = send_socket.send_to(msg.as_bytes(), addr);
@@ -60,6 +53,11 @@ pub fn run_discovery() -> std::io::Result<()> {
     loop {
         let (len, src) = socket.recv_from(&mut buf)?;
         let msg = String::from_utf8_lossy(&buf[..len]);
+
+        let parts: Vec<&str> = msg.split("|").collect();
+        if parts.len() > 1 && parts[1] == id {
+            continue;
+        }
         println!("Discovered {}: from {}", src, msg);
     }
 }
