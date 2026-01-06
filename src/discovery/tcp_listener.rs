@@ -17,7 +17,6 @@ pub fn start_tcp_listener(local_id: String, local_name: String) -> Option<TcpStr
                         return None;
                     }
                     let sender_name = parts[2];
-
                     print!("Request from:{}. Accept (y/n)", sender_name);
                     let mut choice = String::new();
                     io::stdin().read_line(&mut choice).unwrap();
