@@ -13,9 +13,20 @@ pub fn send_file_data(mut stream: TcpStream, file_path: &str) -> io::Result<()> 
 
     stream.write_all(format!("File Name: {}, File size: {}", file_name, file_size).as_bytes())?;
 
-    let mut confimation_buf = [0u8; 64];
-    let len = stream.read(&mut confimation_buf)?;
-    let msg = String::from_utf8_lossy(&confimation_buf[..len]);
+    let meta_msg = format!("File Name: {}, File size: {}", file_name, file_size);
+    let meta_bytes = meta_msg.as_bytes();
+    let meta_len = meta_bytes.len() as u32;
+
+    // 2. Send the LENGTH of the message first (4 bytes)
+    stream.write_all(&meta_len.to_be_bytes())?;
+
+    // 3. Send the message itself
+    stream.write_all(meta_bytes)?;
+
+    let mut confirm_buf = [0u8; 16]; // Small buffer is fine here
+    let len = stream.read(&mut confirm_buf)?;
+    let msg = String::from_utf8_lossy(&confirm_buf[..len]);
+
     if msg.starts_with("y") {
         println!("Sending {} ({} bytes...", file_name, file_size);
         stream.write_all(&file_size.to_be_bytes())?;
@@ -43,9 +54,14 @@ pub fn send_file_data(mut stream: TcpStream, file_path: &str) -> io::Result<()> 
 }
 
 pub fn receive_file_data(mut stream: TcpStream) -> io::Result<()> {
-    let mut confirm_buf = [0u8; 1024];
-    let len_confirm_buf = stream.read(&mut confirm_buf)?;
-    let confirm_msg = String::from_utf8_lossy(&confirm_buf[..len_confirm_buf]);
+    let mut len_buf = [0u8; 4];
+    stream.read_exact(&mut len_buf)?; // blocks until we get exactly 4 bytes
+    let meta_len = u32::from_be_bytes(len_buf) as usize;
+
+    // 2. Read EXACTLY that many bytes for the message
+    let mut meta_buf = vec![0u8; meta_len];
+    stream.read_exact(&mut meta_buf)?;
+    let confirm_msg = String::from_utf8_lossy(&meta_buf);
     println!("Wanna receive this file: {} (y/n) ", confirm_msg);
     let mut choice = String::new();
     io::stdin()

@@ -27,7 +27,7 @@ pub fn start_tcp_listener(local_id: String, local_name: String) -> Option<TcpStr
                         return Some(stream);
                     } else {
                         let reply = format!("REJECTED|{}|{}", local_id, local_name);
-                        stream.write_all(reply.as_bytes());
+                        stream.write_all(reply.as_bytes()).unwrap();
                     }
                 }
             }
