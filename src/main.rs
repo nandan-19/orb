@@ -127,14 +127,11 @@ fn main() {
         match option {
             "1" => {
                 set_state(&my_state, State::Send);
-
                 send_file(peers.clone());
-
                 set_state(&my_state, State::Idle);
             }
             "2" => {
                 set_state(&my_state, State::Receive);
-
                 receive_file();
 
                 set_state(&my_state, State::Idle);
