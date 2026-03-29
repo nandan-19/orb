@@ -7,7 +7,7 @@ use std::{
     sync::{Arc, RwLock},
     time::{Duration, Instant},
 };
-use tokio::{task, time::sleep};
+use tokio::{runtime::Runtime, task, time::sleep};
 
 // =======================
 // DATA STRUCTURES
@@ -135,6 +135,8 @@ pub fn run_discovery(peers: SharedPeers, my_state: SharedState) {
 
     let mdns = ServiceDaemon::new().unwrap();
 
+    let rt = Runtime::new().expect("Failed to create Tokio runtime");
+
     // Initial registration
     register_service(&mdns, &node_id, &name, *my_state.read().unwrap());
 
@@ -145,34 +147,36 @@ pub fn run_discovery(peers: SharedPeers, my_state: SharedState) {
     let node_id_clone = node_id.clone();
     let name_clone = name.clone();
     let state_clone = my_state.clone();
+    rt.block_on(async move {
+        task::spawn(async move {
+            let mut last_state = State::Idle;
 
-    task::spawn(async move {
-        let mut last_state = State::Idle;
+            loop {
+                let current_state = *state_clone.read().unwrap();
 
-        loop {
-            let current_state = *state_clone.read().unwrap();
+                if current_state != last_state {
+                    // re-register service with updated state
+                    register_service(&mdns_clone, &node_id_clone, &name_clone, current_state);
+                    last_state = current_state;
+                }
 
-            if current_state != last_state {
-                // re-register service with updated state
-                register_service(&mdns_clone, &node_id_clone, &name_clone, current_state);
-                last_state = current_state;
+                sleep(Duration::from_secs(1)).await;
             }
+        });
+        // =======================
+        // BROWSER LOOP
+        // =======================
+        let receiver = mdns.browse(SERVICE_TYPE).unwrap();
+        let peers_clone = peers.clone();
 
-            sleep(Duration::from_secs(1)).await;
-        }
-    });
-
-    // =======================
-    // BROWSER LOOP
-    // =======================
-    let receiver = mdns.browse(SERVICE_TYPE).unwrap();
-    let peers_clone = peers.clone();
-
-    task::spawn_blocking(move || {
-        while let Ok(event) = receiver.recv() {
-            if let ServiceEvent::ServiceResolved(info) = event {
-                handle_peer(*info, &peers_clone, &my_id);
+        tokio::task::spawn_blocking(move || {
+            while let Ok(event) = receiver.recv() {
+                if let ServiceEvent::ServiceResolved(info) = event {
+                    handle_peer(*info, &peers_clone, &my_id);
+                }
             }
-        }
+        })
+        .await
+        .unwrap();
     });
 }
